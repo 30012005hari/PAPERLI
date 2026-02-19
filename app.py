@@ -510,14 +510,152 @@ if st.session_state.get("analysis_done"):
     with tab_comp:
         st.markdown(st.session_state["comparison"])
 
-    # -- Code tab
+    # -- Code tab (IDE-like editor + terminal)
     with tab_code:
         code_files: dict[str, str] = st.session_state.get("code_files", {})
         if code_files:
-            for fname, code in code_files.items():
-                lang = _detect_language(fname)
-                with st.expander(fname, expanded=True):
-                    st.code(code, language=lang, line_numbers=True)
+            file_names = list(code_files.keys())
+
+            # File selector tabs
+            selected_file = st.selectbox(
+                "Select file",
+                file_names,
+                key="ide_file_select",
+                label_visibility="collapsed",
+            )
+
+            lang = _detect_language(selected_file)
+
+            # Initialize editor state for each file
+            editor_key = f"editor_{selected_file}"
+            if editor_key not in st.session_state:
+                st.session_state[editor_key] = code_files[selected_file]
+
+            # Two-column layout: code view + controls
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+                f'<span style="font-family:monospace;font-size:0.85rem;color:#888;">📄 {selected_file}</span>'
+                f'<span style="font-family:monospace;font-size:0.75rem;color:#555;margin-left:auto;">{lang}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            # Editable code area
+            edited_code = st.text_area(
+                "Code Editor",
+                value=st.session_state[editor_key],
+                height=400,
+                key=f"code_input_{selected_file}",
+                label_visibility="collapsed",
+            )
+            # Keep editor state in sync
+            st.session_state[editor_key] = edited_code
+
+            # Action buttons row
+            btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 3])
+            with btn_col1:
+                run_clicked = st.button("▶ Run", key="run_code", use_container_width=True, type="primary")
+            with btn_col2:
+                reset_clicked = st.button("↺ Reset", key="reset_code", use_container_width=True)
+
+            if reset_clicked:
+                st.session_state[editor_key] = code_files.get(selected_file, "")
+                st.rerun()
+
+            # Read-only syntax-highlighted view
+            with st.expander("Syntax-highlighted view", expanded=False):
+                st.code(edited_code, language=lang, line_numbers=True)
+
+            # ── Terminal ─────────────────────────────────────────────────
+            st.markdown(
+                '<p style="font-family:monospace;font-size:0.85rem;color:#888;margin:16px 0 4px 0;">Terminal</p>',
+                unsafe_allow_html=True,
+            )
+
+            if run_clicked:
+                if lang == "python":
+                    import subprocess, tempfile, os
+
+                    # Write code to a temp file and execute
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", suffix=".py", delete=False, encoding="utf-8"
+                    ) as tmp:
+                        tmp.write(edited_code)
+                        tmp_path = tmp.name
+
+                    try:
+                        result = subprocess.run(
+                            [sys.executable, tmp_path],
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                            cwd=str(PROJECT_ROOT),
+                        )
+                        output = ""
+                        if result.stdout:
+                            output += result.stdout
+                        if result.stderr:
+                            output += ("\n" if output else "") + result.stderr
+
+                        exit_code = result.returncode
+                    except subprocess.TimeoutExpired:
+                        output = "⏰ Execution timed out (30s limit)."
+                        exit_code = -1
+                    except Exception as e:
+                        output = f"Error: {str(e)}"
+                        exit_code = -1
+                    finally:
+                        os.unlink(tmp_path)
+
+                    # Dark terminal-style output
+                    if exit_code == 0:
+                        status_badge = '<span style="color:#4ade80;">✓ exit 0</span>'
+                    else:
+                        status_badge = f'<span style="color:#f87171;">✗ exit {exit_code}</span>'
+
+                    terminal_html = f"""
+                    <div style="
+                        background: #1e1e2e;
+                        color: #cdd6f4;
+                        border-radius: 8px;
+                        padding: 12px 16px;
+                        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+                        font-size: 0.82rem;
+                        line-height: 1.6;
+                        max-height: 400px;
+                        overflow-y: auto;
+                        border: 1px solid #313244;
+                    ">
+                        <div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #313244;display:flex;justify-content:space-between;">
+                            <span style="color:#89b4fa;">$ python {selected_file}</span>
+                            {status_badge}
+                        </div>
+                        <pre style="margin:0;white-space:pre-wrap;word-wrap:break-word;">{output if output else '<span style="color:#585b70;">(no output)</span>'}</pre>
+                    </div>
+                    """
+                    st.markdown(terminal_html, unsafe_allow_html=True)
+                else:
+                    st.warning(f"Running **{lang}** files is not supported yet. Only Python files can be executed.")
+            else:
+                # Show empty terminal placeholder
+                st.markdown(
+                    """
+                    <div style="
+                        background: #1e1e2e;
+                        color: #585b70;
+                        border-radius: 8px;
+                        padding: 12px 16px;
+                        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+                        font-size: 0.82rem;
+                        line-height: 1.6;
+                        min-height: 60px;
+                        border: 1px solid #313244;
+                    ">
+                        <span style="color:#89b4fa;">$</span> Press ▶ Run to execute the code...
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
         else:
             st.info("No code files were generated. The LLM response may not have used the expected format.")
             with st.expander("Raw LLM output"):
