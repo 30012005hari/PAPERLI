@@ -10,6 +10,7 @@ Powered by local LLMs via Ollama.
 
 from __future__ import annotations
 
+import json
 import sys
 import time
 from pathlib import Path
@@ -39,6 +40,7 @@ from modules.llm_client import generate_streaming as ollama_streaming, is_ollama
 from modules.gemini_client import generate_streaming as gemini_streaming, GEMINI_MODELS
 from modules.code_generator import parse_code_blocks
 from modules.project_builder import build_project_zip, file_tree_string
+from backend.database import SessionLocal, Paper, Analysis, ChatMessage
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -100,11 +102,18 @@ _DEFAULTS: dict = {
     "chat_history": [],
     "zip_bytes": None,
     "analysis_done": False,
+    "current_paper_id": None,
+    "current_analysis_id": None,
 }
 
 for key, val in _DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = val
+
+
+# ── DB helper ────────────────────────────────────────────────────────────────
+def _get_db():
+    return SessionLocal()
 
 
 with st.sidebar:
@@ -182,6 +191,60 @@ with st.sidebar:
         st.caption("Cloud mode — requires internet and API key.")
     else:
         st.caption("Offline mode — all processing stays on your machine.")
+
+    # ── Paper History ────────────────────────────────────────────────────
+    st.markdown("")
+    st.divider()
+    st.markdown("### Paper History")
+    db = _get_db()
+    try:
+        past_papers = db.query(Paper).order_by(Paper.created_at.desc()).limit(20).all()
+        if past_papers:
+            for pp in past_papers:
+                analysis_count = len(pp.analyses)
+                label = f"{pp.filename}  ({analysis_count} analysis{'es' if analysis_count != 1 else ''})"
+                if st.button(label, key=f"hist_{pp.id}", use_container_width=True):
+                    # Load the most recent analysis for this paper
+                    latest = (
+                        db.query(Analysis)
+                        .filter(Analysis.paper_id == pp.id)
+                        .order_by(Analysis.created_at.desc())
+                        .first()
+                    )
+                    if latest:
+                        st.session_state["explanation"] = latest.explanation
+                        st.session_state["architecture"] = latest.architecture
+                        st.session_state["code_raw"] = latest.code_raw
+                        st.session_state["code_files"] = parse_code_blocks(latest.code_raw)
+                        st.session_state["deployment"] = latest.deployment
+                        st.session_state["flashcards"] = latest.flashcards
+                        st.session_state["equations"] = latest.equations
+                        st.session_state["critique"] = latest.critique
+                        st.session_state["comparison"] = latest.comparison
+                        st.session_state["zip_bytes"] = latest.zip_bytes
+                        st.session_state["sections"] = json.loads(pp.sections_json)
+                        st.session_state["extracted_text"] = pp.extracted_text
+                        st.session_state["pages"] = None
+                        st.session_state["analysis_done"] = True
+                        st.session_state["current_paper_id"] = pp.id
+                        st.session_state["current_analysis_id"] = latest.id
+                        # Load chat history from DB
+                        chat_msgs = (
+                            db.query(ChatMessage)
+                            .filter(ChatMessage.analysis_id == latest.id)
+                            .order_by(ChatMessage.created_at.asc())
+                            .all()
+                        )
+                        st.session_state["chat_history"] = [
+                            {"role": m.role, "content": m.content} for m in chat_msgs
+                        ]
+                        st.rerun()
+                    else:
+                        st.info("No analysis found. Upload and analyse again.")
+        else:
+            st.caption("No papers yet. Upload one above!")
+    finally:
+        db.close()
 
 # Header — editorial, centered
 st.markdown("")
@@ -341,6 +404,47 @@ if uploaded_file is not None:
                 zip_bytes = build_project_zip(code_files)
                 st.session_state["zip_bytes"] = zip_bytes
 
+            # ── Save to database ─────────────────────────────────────────
+            st.write("Saving to database...")
+            db = _get_db()
+            try:
+                # Save paper
+                paper_rec = Paper(
+                    filename=uploaded_file.name,
+                    size_mb=round(size_mb, 2),
+                    extracted_text=full_text,
+                    page_count=len(pages),
+                    sections_json=json.dumps(sections),
+                )
+                db.add(paper_rec)
+                db.commit()
+                db.refresh(paper_rec)
+                st.session_state["current_paper_id"] = paper_rec.id
+
+                # Save analysis
+                analysis_rec = Analysis(
+                    paper_id=paper_rec.id,
+                    model_used=selected_model,
+                    provider="gemini" if use_gemini else "ollama",
+                    detail_level=detail_level,
+                    explanation=explanation,
+                    architecture=architecture,
+                    code_raw=code_raw,
+                    deployment=deployment,
+                    flashcards=flashcards,
+                    equations=equations,
+                    critique=critique,
+                    comparison=comparison,
+                    zip_bytes=zip_bytes if code_files else None,
+                )
+                db.add(analysis_rec)
+                db.commit()
+                db.refresh(analysis_rec)
+                st.session_state["current_analysis_id"] = analysis_rec.id
+                st.write(f"Saved as Paper #{paper_rec.id}, Analysis #{analysis_rec.id}")
+            finally:
+                db.close()
+
             st.session_state["analysis_done"] = True
             status.update(label="Analysis complete", state="complete", expanded=False)
 
@@ -468,3 +572,14 @@ if st.session_state.get("analysis_done"):
             ph = st.empty()
             answer = _stream_and_collect(prompt, selected_model, temperature, ph)
         st.session_state["chat_history"].append({"role": "assistant", "content": answer})
+
+        # Persist chat messages to DB
+        analysis_id = st.session_state.get("current_analysis_id")
+        if analysis_id:
+            db = _get_db()
+            try:
+                db.add(ChatMessage(analysis_id=analysis_id, role="user", content=user_q))
+                db.add(ChatMessage(analysis_id=analysis_id, role="assistant", content=answer))
+                db.commit()
+            finally:
+                db.close()
