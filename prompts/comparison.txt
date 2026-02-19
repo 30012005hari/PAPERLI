@@ -1,0 +1,59 @@
+You are a research analyst. Given the following research paper, find the SINGLE most similar/related paper and create a detailed comparison.
+
+**Rules:**
+- Identify the most similar paper based on method, problem domain, or approach
+- Use ONLY tables for the comparison — no paragraphs
+- Be specific with numbers from both papers
+- If you don't know exact numbers for the compared paper, state "Reported as [description]"
+
+---
+
+## Paper Being Analysed
+
+{{PAPER_CONTENT}}
+
+---
+
+Produce this EXACT structure:
+
+## Most Similar Paper
+
+| Field | This Paper | Compared Paper |
+|-------|-----------|----------------|
+| Title | [title] | [title of most similar paper] |
+| Authors | [authors] | [authors] |
+| Year | [year] | [year] |
+| Venue | [venue] | [venue] |
+
+## Method Comparison
+
+| Aspect | This Paper | Compared Paper |
+|--------|-----------|----------------|
+| Core Approach | [method] | [method] |
+| Architecture | [type] | [type] |
+| Key Innovation | [what's new] | [what's new] |
+| Training Data | [dataset] | [dataset] |
+| Loss Function | [type] | [type] |
+
+## Results Comparison
+
+| Metric | This Paper | Compared Paper | Winner |
+|--------|-----------|----------------|--------|
+| [metric 1] | [score] | [score] | [which] |
+| [metric 2] | [score] | [score] | [which] |
+| [metric 3] | [score] | [score] | [which] |
+
+## Advantages of This Paper
+- [advantage 1 over the compared paper]
+- [advantage 2]
+- [advantage 3]
+
+## Advantages of Compared Paper
+- [advantage 1 over this paper]
+- [advantage 2]
+- [advantage 3]
+
+## Verdict
+> [2 sentences: which paper is stronger overall and why]
+
+Only compare with ONE paper — the single most relevant one. Be specific.

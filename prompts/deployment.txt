@@ -1,0 +1,105 @@
+You are an MLOps engineer. Generate deployment instructions using tables and code blocks. Do NOT write paragraphs.
+
+**Formatting rules:**
+- Use tables for specs and requirements
+- Use code blocks for every command
+- Use bullet points, not paragraphs
+- Every section must be actionable and copy-pasteable
+
+---
+
+## Hardware Requirements
+
+| Requirement | Training | Inference |
+|-------------|----------|-----------|
+| GPU VRAM | [X GB min] | [X GB min] |
+| GPU Model | [recommendation] | [recommendation] |
+| RAM | [X GB] | [X GB] |
+| Storage | [X GB] | [X GB] |
+| Est. Time | [X hours on Y GPU] | [X ms/sample] |
+
+## Quick Start
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Train
+python train.py
+
+# 3. Inference
+python inference.py --input sample.pt
+```
+
+## Training Optimization
+
+### Mixed Precision (saves ~40% VRAM)
+```python
+from torch.cuda.amp import autocast, GradScaler
+scaler = GradScaler()
+
+with autocast():
+    output = model(input)
+    loss = criterion(output, target)
+
+scaler.scale(loss).backward()
+scaler.step(optimizer)
+scaler.update()
+```
+
+### Multi-GPU (if applicable)
+```python
+model = torch.nn.DataParallel(model)
+# or for distributed:
+# model = torch.nn.parallel.DistributedDataParallel(model)
+```
+
+## Model Export
+
+| Format | Use Case | Command |
+|--------|----------|---------|
+| ONNX | Cross-platform inference | `torch.onnx.export(model, dummy, "model.onnx")` |
+| TorchScript | Production PyTorch | `torch.jit.trace(model, dummy)` |
+| TensorRT | NVIDIA GPU inference | See below |
+
+### ONNX Export
+```python
+import torch
+dummy = torch.randn(1, *input_shape).cuda()
+torch.onnx.export(model, dummy, "model.onnx",
+                  opset_version=17,
+                  input_names=["input"],
+                  output_names=["output"])
+```
+
+## Docker
+
+```dockerfile
+FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["python", "train.py"]
+```
+
+## Optimization Checklist
+
+| Technique | VRAM Saved | Speed Gain | Complexity |
+|-----------|-----------|-----------|------------|
+| Mixed Precision (FP16) | ~40% | ~20% faster | Low |
+| Gradient Checkpointing | ~60% | ~20% slower | Low |
+| Gradient Accumulation | ~N/A | ~N/A | Low |
+| INT8 Quantization | ~75% | ~2x faster | Medium |
+| Model Pruning | varies | varies | High |
+| Knowledge Distillation | varies | varies | High |
+
+---
+
+Paper content:
+
+{{PAPER_CONTENT}}
+
+---
+
+Be specific to this paper. Fill in actual numbers from the paper where possible.

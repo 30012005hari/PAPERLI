@@ -1,0 +1,62 @@
+You are an expert ML engineer. Generate a complete, runnable implementation based on this paper.
+
+Read the paper carefully. Extract all hyperparameters, architecture details, and training procedures. Then generate these files:
+
+### Files to generate:
+
+1. **model.py** -- Complete model definition. Match the paper's architecture:
+   - Use exact layer sizes, activations, normalization from the paper
+   - Add comments referencing paper sections (e.g., "# Section 3.2: Multi-head attention")
+   - Document input/output shapes in docstrings
+
+2. **train.py** -- Training script with:
+   - Data loading (paper's dataset if public, else synthetic matching described format)
+   - The paper's optimizer, LR, and schedule
+   - Validation with the paper's metrics
+   - Checkpoint saving
+   - Progress logging with loss/metric values
+
+3. **config.yaml** -- All hyperparameters in a table-like YAML:
+   ```
+   # Architecture (from Section X)
+   param: value
+   # Training (from Section X)
+   param: value
+   ```
+
+4. **requirements.txt** -- Dependencies
+
+### File format -- use EXACTLY this pattern:
+
+```python  # model.py
+<code>
+```
+
+```python  # train.py
+<code>
+```
+
+```yaml  # config.yaml
+<content>
+```
+
+```text  # requirements.txt
+<content>
+```
+
+### Rules:
+- Use PyTorch unless the paper uses another framework
+- Every hyperparameter must come from the paper. If not specified, use sensible defaults and mark with "# DEFAULT - not in paper"
+- Code must run with: python train.py
+- Include GPU/CPU device handling
+- Do not use placeholder functions -- every function must be fully implemented
+
+---
+
+Paper content:
+
+{{PAPER_CONTENT}}
+
+---
+
+Generate all files. Every file must be complete and runnable.

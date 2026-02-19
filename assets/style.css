@@ -1,0 +1,893 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Research Paper Explainer — Premium White Aesthetic
+   Fonts: Outfit (headings) + DM Sans (body) + JetBrains Mono (code)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+    --bg: #ffffff;
+    --bg-page: #f5f5f7;
+    --surface: rgba(255, 255, 255, 0.65);
+    --surface-solid: #ffffff;
+    --surface-hover: rgba(255, 255, 255, 0.85);
+    --border: rgba(0, 0, 0, 0.06);
+    --border-hover: rgba(0, 0, 0, 0.12);
+    --text: #111111;
+    --text-secondary: #555555;
+    --text-muted: #888888;
+    --text-faint: #bbbbbb;
+    --accent: #111111;
+    --accent-soft: rgba(0, 0, 0, 0.03);
+    --glass: blur(20px) saturate(180%);
+    --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --radius: 16px;
+    --radius-pill: 999px;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03);
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.08);
+    --shadow-glass: 0 2px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ── Global ────────────────────────────────────────────────────────────── */
+html,
+body,
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stHeader"],
+.main,
+.main .block-container {
+    background: var(--bg-page) !important;
+    color: var(--text) !important;
+    font-family: var(--font-body);
+}
+
+/* ── Icon fix — hide leaked ligature text, show CSS arrow instead ─────── */
+/* Sidebar collapse/expand button — the icon text leaks as "keyboard_arrow_down" etc. */
+[data-testid="stSidebarCollapsedControl"] button span,
+[data-testid="stSidebarCollapseButton"] button span,
+[data-testid="collapsedControl"] button span,
+button[kind="header"] span,
+button[kind="headerNoPadding"] span,
+[data-testid="stBaseButton-headerNoPadding"] span,
+[data-testid="stBaseButton-header"] span {
+    font-size: 0 !important;
+    color: transparent !important;
+    overflow: hidden !important;
+    width: 24px !important;
+    height: 24px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+}
+
+/* CSS chevron arrow as replacement */
+[data-testid="stSidebarCollapsedControl"] button span::after,
+[data-testid="stSidebarCollapseButton"] button span::after,
+[data-testid="collapsedControl"] button span::after,
+button[kind="header"] span::after,
+button[kind="headerNoPadding"] span::after,
+[data-testid="stBaseButton-headerNoPadding"] span::after,
+[data-testid="stBaseButton-header"] span::after {
+    content: '' !important;
+    display: block !important;
+    width: 8px !important;
+    height: 8px !important;
+    border-right: 2px solid var(--text) !important;
+    border-bottom: 2px solid var(--text) !important;
+    transform: rotate(-45deg) !important;
+    position: absolute !important;
+}
+
+/* general icon spans that use material-symbols class — keep working */
+.material-symbols-rounded {
+    font-family: 'Material Symbols Rounded' !important;
+    -webkit-font-feature-settings: 'liga' !important;
+    font-feature-settings: 'liga' !important;
+}
+
+.block-container {
+    padding: 0 2rem 4rem !important;
+    max-width: 820px !important;
+    margin: 0 auto !important;
+}
+
+/* ── Hide Streamlit chrome ─────────────────────────────────────────────── */
+[data-testid="stHeader"] {
+    background: transparent !important;
+    height: 0 !important;
+}
+
+[data-testid="stDecoration"] {
+    display: none !important;
+}
+
+#MainMenu {
+    display: none !important;
+}
+
+footer {
+    display: none !important;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────── */
+section[data-testid="stSidebar"] {
+    background: rgba(255, 255, 255, 0.7) !important;
+    -webkit-backdrop-filter: var(--glass) !important;
+    backdrop-filter: var(--glass) !important;
+    border-right: 1px solid var(--border) !important;
+}
+
+section[data-testid="stSidebar"]>div {
+    background: transparent !important;
+    padding-top: 1.8rem !important;
+}
+
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+    font-family: var(--font-heading) !important;
+    color: var(--text) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.03em !important;
+}
+
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] span {
+    font-family: var(--font-body) !important;
+    color: var(--text-secondary) !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stAlert"] {
+    border-radius: var(--radius) !important;
+    font-size: 0.8rem !important;
+    animation: slideRight 0.3s var(--ease) both;
+}
+
+@keyframes slideRight {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ── Headings ──────────────────────────────────────────────────────────── */
+h1 {
+    font-family: var(--font-heading) !important;
+    color: var(--text) !important;
+    font-weight: 800 !important;
+    font-size: 3rem !important;
+    letter-spacing: -0.05em !important;
+    line-height: 1.05 !important;
+    margin-bottom: 0 !important;
+    text-align: center !important;
+}
+
+h2 {
+    font-family: var(--font-heading) !important;
+    color: var(--text) !important;
+    font-weight: 700 !important;
+    font-size: 1.35rem !important;
+    letter-spacing: -0.03em !important;
+}
+
+h3 {
+    font-family: var(--font-heading) !important;
+    color: var(--text-secondary) !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    letter-spacing: -0.02em !important;
+}
+
+h4,
+h5,
+h6 {
+    font-family: var(--font-heading) !important;
+    letter-spacing: -0.02em !important;
+}
+
+/* ── Body text ─────────────────────────────────────────────────────────── */
+p {
+    font-family: var(--font-body) !important;
+    line-height: 1.7 !important;
+    color: var(--text) !important;
+}
+
+li {
+    font-family: var(--font-body) !important;
+    line-height: 1.6 !important;
+}
+
+/* ── Caption / subtitle ────────────────────────────────────────────────── */
+.stCaption,
+[data-testid="stCaptionContainer"] {
+    text-align: center !important;
+    color: var(--text-muted) !important;
+    font-size: 0.95rem !important;
+    font-family: var(--font-body) !important;
+    margin-top: 0.5rem !important;
+}
+
+.stCaption p {
+    text-align: center !important;
+    color: var(--text-muted) !important;
+}
+
+/* ── Labels everywhere ─────────────────────────────────────────────────── */
+label,
+.stSlider label,
+.stRadio label span,
+.stSelectbox label,
+.stTextInput label {
+    font-family: var(--font-body) !important;
+}
+
+/* ── File uploader ─────────────────────────────────────────────────────── */
+div[data-testid="stFileUploader"] {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: var(--glass) !important;
+    backdrop-filter: var(--glass) !important;
+    border: 1.5px dashed rgba(0, 0, 0, 0.1) !important;
+    border-radius: var(--radius) !important;
+    padding: 2.5rem 2rem !important;
+    transition: all 0.4s var(--ease);
+    box-shadow: var(--shadow-glass);
+}
+
+div[data-testid="stFileUploader"]:hover {
+    border-color: var(--border-hover) !important;
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+    background: var(--surface-hover) !important;
+}
+
+div[data-testid="stFileUploader"] label {
+    color: var(--text-muted) !important;
+    font-weight: 500 !important;
+    font-family: var(--font-body) !important;
+}
+
+div[data-testid="stFileUploader"] button {
+    background: var(--accent) !important;
+    color: var(--bg) !important;
+    border: none !important;
+    border-radius: var(--radius-pill) !important;
+    font-weight: 600 !important;
+    font-family: var(--font-body) !important;
+    transition: all 0.25s var(--ease) !important;
+}
+
+div[data-testid="stFileUploader"] button:hover {
+    transform: scale(1.02) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+/* ── Primary button ────────────────────────────────────────────────────── */
+.stButton>button {
+    background: #111111 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: var(--radius-pill) !important;
+    padding: 0.85rem 2.5rem !important;
+    font-weight: 600 !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.9rem !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0 !important;
+    text-align: center !important;
+    box-shadow: var(--shadow) !important;
+    transition: all 0.3s var(--ease) !important;
+    cursor: pointer !important;
+}
+
+.stButton>button:hover {
+    box-shadow: var(--shadow-lg) !important;
+    transform: translateY(-2px) !important;
+}
+
+.stButton>button:active {
+    transform: translateY(0) scale(0.97) !important;
+    transition: all 0.1s !important;
+}
+
+/* force button text to be visible */
+.stButton>button p,
+.stButton>button span,
+.stButton>button div {
+    color: #ffffff !important;
+}
+
+/* ── Download button ───────────────────────────────────────────────────── */
+.stDownloadButton>button {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1.5px solid var(--border) !important;
+    border-radius: var(--radius-pill) !important;
+    padding: 0.75rem 2.5rem !important;
+    font-weight: 500 !important;
+    font-family: var(--font-body) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all 0.3s var(--ease) !important;
+}
+
+.stDownloadButton>button:hover {
+    border-color: var(--accent) !important;
+    box-shadow: var(--shadow) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0;
+    background: transparent !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: var(--text-muted) !important;
+    font-weight: 500 !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.85rem !important;
+    padding: 12px 18px !important;
+    border-radius: 0 !important;
+    border-bottom: 2.5px solid transparent !important;
+    transition: all 0.3s var(--ease) !important;
+    background: transparent !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    color: var(--text) !important;
+    background: var(--accent-soft) !important;
+}
+
+.stTabs [aria-selected="true"] {
+    color: var(--text) !important;
+    background: transparent !important;
+    border-bottom-color: var(--accent) !important;
+    font-weight: 700 !important;
+}
+
+.stTabs [data-baseweb="tab-highlight"],
+.stTabs [data-baseweb="tab-border"] {
+    display: none !important;
+}
+
+/* tab panels — slide up */
+.stTabs [data-baseweb="tab-panel"] {
+    animation: tabSlideUp 0.4s var(--ease) both;
+    padding-top: 1.5rem !important;
+}
+
+@keyframes tabSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Metrics ───────────────────────────────────────────────────────────── */
+div[data-testid="stMetric"] {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: var(--glass) !important;
+    backdrop-filter: var(--glass) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    padding: 1.2rem 1.1rem !important;
+    box-shadow: var(--shadow-glass);
+    transition: all 0.3s var(--ease);
+    animation: metricPop 0.5s var(--ease-bounce) both;
+}
+
+div[data-testid="stMetric"]:hover {
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+    background: var(--surface-hover) !important;
+}
+
+@keyframes metricPop {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+div[data-testid="stMetric"] label {
+    color: var(--text-muted) !important;
+    font-size: 0.65rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-weight: 600 !important;
+    font-family: var(--font-body) !important;
+}
+
+div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+    color: var(--text) !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    font-family: var(--font-heading) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 100% !important;
+}
+
+/* ── Code blocks ───────────────────────────────────────────────────────── */
+.stCodeBlock,
+pre {
+    background: var(--accent-soft) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    font-family: var(--mono) !important;
+    font-size: 0.82rem !important;
+}
+
+code {
+    font-family: var(--mono) !important;
+    font-size: 0.82rem !important;
+}
+
+/* ── Expanders ─────────────────────────────────────────────────────────── */
+div[data-testid="stExpander"] {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: var(--glass) !important;
+    backdrop-filter: var(--glass) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    overflow: hidden;
+    transition: all 0.3s var(--ease);
+    box-shadow: var(--shadow-glass);
+}
+
+div[data-testid="stExpander"]:hover {
+    box-shadow: var(--shadow);
+    transform: translateY(-1px);
+    background: var(--surface-hover) !important;
+}
+
+div[data-testid="stExpander"] summary {
+    font-weight: 600 !important;
+    color: var(--text) !important;
+    font-family: var(--font-body) !important;
+}
+
+/* ── Inputs / Select ───────────────────────────────────────────────────── */
+div[data-baseweb="select"]>div,
+div[data-baseweb="input"]>div {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: var(--glass) !important;
+    backdrop-filter: var(--glass) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    font-family: var(--font-body) !important;
+    color: var(--text) !important;
+    transition: all 0.25s var(--ease) !important;
+    box-shadow: var(--shadow-glass) !important;
+}
+
+div[data-baseweb="select"]>div:hover,
+div[data-baseweb="input"]>div:hover {
+    border-color: var(--border-hover) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+div[data-baseweb="select"]>div:focus-within,
+div[data-baseweb="input"]>div:focus-within {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.06) !important;
+}
+
+/* ── Radio — pill toggles ──────────────────────────────────────────────── */
+div[data-testid="stRadio"]>div {
+    gap: 0.5rem !important;
+}
+
+div[data-testid="stRadio"] label {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: var(--glass) !important;
+    backdrop-filter: var(--glass) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-pill) !important;
+    padding: 0.45rem 1.1rem !important;
+    transition: all 0.25s var(--ease) !important;
+    font-size: 0.82rem !important;
+    font-family: var(--font-body) !important;
+    color: var(--text-secondary) !important;
+    box-shadow: var(--shadow-glass) !important;
+}
+
+div[data-testid="stRadio"] label:hover {
+    border-color: var(--accent) !important;
+    color: var(--text) !important;
+    box-shadow: var(--shadow) !important;
+    transform: translateY(-1px);
+}
+
+/* ── Status widget ─────────────────────────────────────────────────────── */
+div[data-testid="stStatusWidget"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* ── Alerts ─────────────────────────────────────────────────────────────── */
+div[data-testid="stAlert"] {
+    border-radius: var(--radius) !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.85rem !important;
+    animation: alertSlide 0.35s var(--ease) both;
+}
+
+@keyframes alertSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Divider ───────────────────────────────────────────────────────────── */
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: var(--border) !important;
+    margin: 2.5rem 0 !important;
+}
+
+/* ── Tables — clean ────────────────────────────────────────────────────── */
+table {
+    font-family: var(--font-body) !important;
+    font-size: 0.85rem !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    overflow: hidden !important;
+    width: 100% !important;
+}
+
+th {
+    background: var(--accent-soft) !important;
+    font-weight: 600 !important;
+    color: var(--text) !important;
+    padding: 10px 14px !important;
+    text-align: left !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+}
+
+td {
+    padding: 10px 14px !important;
+    border-top: 1px solid var(--border) !important;
+    color: var(--text-secondary) !important;
+}
+
+tr:hover td {
+    background: var(--surface-hover) !important;
+}
+
+/* ── Blockquotes — callout style ───────────────────────────────────────── */
+blockquote {
+    border-left: 3px solid var(--accent) !important;
+    background: var(--accent-soft) !important;
+    padding: 1rem 1.2rem !important;
+    margin: 1rem 0 !important;
+    border-radius: 0 var(--radius) var(--radius) 0 !important;
+    font-family: var(--font-body) !important;
+}
+
+blockquote p {
+    color: var(--text) !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-hover);
+}
+
+/* ── Selection ─────────────────────────────────────────────────────────── */
+::selection {
+    background: rgba(17, 17, 17, 0.1);
+    color: var(--text);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Staggered startup ─────────────────────────────────────────────────── */
+.main .block-container {
+    opacity: 1 !important;
+}
+
+.main .block-container>div {
+    opacity: 0;
+    transform: translateY(24px);
+    animation: staggerIn 0.65s var(--ease) both;
+}
+
+.main .block-container>div:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.main .block-container>div:nth-child(2) {
+    animation-delay: 0.12s;
+}
+
+.main .block-container>div:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.main .block-container>div:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+.main .block-container>div:nth-child(5) {
+    animation-delay: 0.4s;
+}
+
+.main .block-container>div:nth-child(6) {
+    animation-delay: 0.48s;
+}
+
+.main .block-container>div:nth-child(7) {
+    animation-delay: 0.55s;
+}
+
+.main .block-container>div:nth-child(8) {
+    animation-delay: 0.6s;
+}
+
+.main .block-container>div:nth-child(9) {
+    animation-delay: 0.65s;
+}
+
+.main .block-container>div:nth-child(10) {
+    animation-delay: 0.7s;
+}
+
+.main .block-container>div:nth-child(n+11) {
+    animation-delay: 0.75s;
+}
+
+@keyframes staggerIn {
+    0% {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Startup splash overlay ────────────────────────────────────────────── */
+.startup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: splashFadeOut 0.6s ease 1.8s both;
+    pointer-events: none;
+}
+
+.startup-overlay .splash-logo {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #111;
+    letter-spacing: -0.04em;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: splashTextIn 0.8s var(--ease) 0.2s both;
+}
+
+.startup-overlay .splash-sub {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 8px;
+    opacity: 0;
+    animation: splashTextIn 0.6s var(--ease) 0.6s both;
+}
+
+.startup-overlay .splash-bar {
+    width: 40px;
+    height: 3px;
+    background: #111;
+    border-radius: 99px;
+    margin-top: 16px;
+    opacity: 0;
+    animation: splashBarGrow 0.8s var(--ease) 0.9s both;
+}
+
+@keyframes splashTextIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes splashBarGrow {
+    0% {
+        opacity: 0;
+        width: 0;
+    }
+
+    100% {
+        opacity: 1;
+        width: 40px;
+    }
+}
+
+@keyframes splashFadeOut {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
+/* ── Sidebar entrance ──────────────────────────────────────────────────── */
+section[data-testid="stSidebar"]>div>div>div {
+    animation: sidebarSlide 0.4s var(--ease) both;
+}
+
+section[data-testid="stSidebar"]>div>div>div:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+section[data-testid="stSidebar"]>div>div>div:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+section[data-testid="stSidebar"]>div>div>div:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+section[data-testid="stSidebar"]>div>div>div:nth-child(4) {
+    animation-delay: 0.2s;
+}
+
+section[data-testid="stSidebar"]>div>div>div:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+section[data-testid="stSidebar"]>div>div>div:nth-child(6) {
+    animation-delay: 0.3s;
+}
+
+section[data-testid="stSidebar"]>div>div>div:nth-child(n+7) {
+    animation-delay: 0.35s;
+}
+
+@keyframes sidebarSlide {
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ── Hover micro-interactions ──────────────────────────────────────────── */
+a {
+    transition: all 0.2s var(--ease) !important;
+}
+
+a:hover {
+    opacity: 0.7 !important;
+}
+
+/* ── Chat bubbles ──────────────────────────────────────────────────────── */
+div[data-testid="stChatMessage"] {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: var(--glass) !important;
+    backdrop-filter: var(--glass) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    padding: 1rem 1.2rem !important;
+    margin-bottom: 0.8rem !important;
+    box-shadow: var(--shadow-glass);
+    animation: chatSlideIn 0.35s var(--ease) both;
+}
+
+div[data-testid="stChatMessage"]:hover {
+    box-shadow: var(--shadow);
+}
+
+@keyframes chatSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* chat input bar */
+div[data-testid="stChatInput"] {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: var(--glass) !important;
+    backdrop-filter: var(--glass) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: var(--shadow-glass);
+}
+
+div[data-testid="stChatInput"] textarea {
+    font-family: var(--font-body) !important;
+    font-size: 0.9rem !important;
+}
+
+/* smooth all transitions globally */
+*,
+*::before,
+*::after {
+    transition-timing-function: var(--ease);
+}

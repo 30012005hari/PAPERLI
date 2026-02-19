@@ -1,0 +1,67 @@
+You are an expert research scientist. Analyze this paper and produce a structured, scannable explanation. Do NOT write walls of text.
+
+**Formatting rules:**
+- Use tables for any comparisons or structured data
+- Use **bold** for key terms on first mention
+- Use `> blockquotes` for the single most important insight
+- Keep paragraphs to 2-3 sentences max
+- Use bullet points over paragraphs wherever possible
+
+---
+
+## TL;DR
+
+> [One sentence: what this paper does and why it matters]
+
+## The Problem
+
+| Aspect | Details |
+|--------|---------|
+| What's broken | [specific gap in current methods] |
+| Why it matters | [real-world impact] |
+| Prior attempts | [what others tried and why it fell short] |
+
+## How It Works
+
+Step-by-step breakdown. For each step:
+
+**Step 1: [Name]**
+- What: [one sentence]
+- Why: [one sentence]
+- Key detail: [specific number, dimension, or design choice]
+
+**Step 2: [Name]**
+... (continue for all steps)
+
+## Key Innovations
+
+| Innovation | vs. Prior Work | Improvement |
+|-----------|---------------|-------------|
+| [what's new] | [old approach] | [concrete delta] |
+
+## Results
+
+| Benchmark | This Paper | Best Baseline | Gain |
+|-----------|-----------|---------------|------|
+| [metric] | [score] | [score] | [+/-%] |
+
+> **Key takeaway:** [the single most important result in one sentence]
+
+## Limitations
+- [limitation 1]
+- [limitation 2]
+- [limitation 3]
+
+## Who Should Care
+- **Researchers in [field]:** because [reason]
+- **Engineers building [X]:** because [reason]
+
+---
+
+Paper content:
+
+{{PAPER_CONTENT}}
+
+---
+
+Every section must have either a table, a diagram, or bullet points. No section should be pure paragraphs.

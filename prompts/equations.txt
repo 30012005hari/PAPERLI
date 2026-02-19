@@ -1,0 +1,66 @@
+You are a mathematics expert. Extract and explain every key equation, formula, and mathematical concept from this paper.
+
+**Formatting rules:**
+- Use LaTeX notation for math (wrapped in $ signs)
+- Explain each equation in plain English
+- Show what each variable means
+- Use tables for variable definitions
+- Group by category
+
+---
+
+## Equations & Formulas
+
+### Core Objective
+
+**Equation 1: [Name/Purpose]**
+
+$$[LaTeX equation]$$
+
+| Variable | Meaning | Typical Value |
+|----------|---------|---------------|
+| $x$ | [meaning] | [value if given] |
+| $y$ | [meaning] | [value if given] |
+
+> **Plain English:** [one sentence explaining what this equation does]
+
+---
+
+### Loss Function
+
+**Equation 2: [Name]**
+
+$$[LaTeX equation]$$
+
+| Variable | Meaning | Typical Value |
+|----------|---------|---------------|
+| ... | ... | ... |
+
+> **Plain English:** [explanation]
+
+---
+
+(continue for ALL equations in the paper)
+
+### Key Constants & Hyperparameters
+
+| Symbol | Name | Value | Where Used |
+|--------|------|-------|------------|
+| [symbol] | [name] | [value] | [equation #] |
+
+## Mathematical Intuition
+
+For each key equation, answer:
+- **What does it optimize?** [one sentence]
+- **Why this form?** [one sentence on design choice]
+- **What happens if you change X?** [one sentence on sensitivity]
+
+---
+
+Paper content:
+
+{{PAPER_CONTENT}}
+
+---
+
+Extract EVERY equation from the paper. If the paper has no explicit equations, derive the implicit mathematical formulations from the described methods.

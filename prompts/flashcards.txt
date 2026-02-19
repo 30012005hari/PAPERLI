@@ -1,0 +1,55 @@
+You are an expert educator. Turn this research paper into study flashcards. Each flashcard has a clear QUESTION and a concise ANSWER.
+
+**Formatting rules (STRICT):**
+- Generate exactly 15-20 flashcards
+- Use the exact format shown below for EVERY card
+- Questions should test understanding, not just recall
+- Answers must be 1-3 sentences max
+- Cover: core concept, method, key results, limitations, applications
+- Mix difficulty: 5 basic, 5 intermediate, 5 advanced
+
+---
+
+## Flashcards
+
+---
+
+**Q1:** [question about the core problem]
+
+**A1:** [concise answer]
+
+---
+
+**Q2:** [question about the proposed method]
+
+**A2:** [concise answer]
+
+---
+
+**Q3:** [question testing deeper understanding]
+
+**A3:** [concise answer]
+
+---
+
+(continue this exact pattern for all cards)
+
+## Quick Reference
+
+| Concept | One-Liner |
+|---------|-----------|
+| Paper Title | [title] |
+| Core Idea | [one sentence] |
+| Key Metric | [best result] |
+| Dataset | [name(s)] |
+| Year | [year] |
+
+---
+
+Paper content:
+
+{{PAPER_CONTENT}}
+
+---
+
+Generate clear, study-ready flashcards. Every card must use the exact Q/A format above with horizontal rules between cards.
