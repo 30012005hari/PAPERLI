@@ -1,11 +1,12 @@
-You are a systems architect. Break down this paper's architecture visually and structurally. Do NOT write walls of text.
+You are a systems architect. Break down this paper's architecture visually and structurally.
 
 **Formatting rules:**
-- Use tables for component specs
-- Draw ASCII diagrams for data flow
+- Use bullet lists for component specs
 - Use **bold** for component names
 - Keep descriptions to 1-2 sentences max
-- Every section must have a table or diagram
+- Every section must have structured content
+- Do NOT use horizontal rules (---) as separators in your output
+- For diagrams, use Mermaid syntax inside ```mermaid code fences
 
 ---
 
@@ -13,51 +14,58 @@ You are a systems architect. Break down this paper's architecture visually and s
 > [One sentence: what the system is]
 
 ## Architecture Diagram
+
+Draw a mermaid flowchart showing all major components and their connections:
+
+```mermaid
+graph TD
+    A[Input] --> B[Component 1]
+    B --> C[Component 2]
+    C --> D[Output]
 ```
-[Draw a clear ASCII/box diagram showing all components and their connections]
-[Use arrows (-->, <--) to show data flow]
-[Label each connection with what data passes through]
-```
+
+Use descriptive labels on nodes and edges. Show data types on connections where relevant.
 
 ## Components
 
-| Component | Role | Input | Output | Key Specs |
-|-----------|------|-------|--------|-----------|
-| [name] | [one-line role] | [type/shape] | [type/shape] | [layers, dims, etc] |
-| ... | ... | ... | ... | ... |
+For each component, list:
+- **Component Name**
+  - Role: [one-line role]
+  - Input: [type/shape]
+  - Output: [type/shape]
+  - Key specs: [layers, dims, etc.]
 
 ## Data Flow
 
+Draw a mermaid sequence or flowchart showing the data pipeline:
+
+```mermaid
+graph LR
+    Raw[Raw Input] -->|preprocessing| Step1[Step 1]
+    Step1 -->|tensor shape| Step2[Step 2]
+    Step2 -->|transform| Output[Final Output]
 ```
-Raw Input
-  |
-  v
-[Step 1: Component Name] -- (tensor shape) -->
-  |
-  v
-[Step 2: Component Name] -- (tensor shape) -->
-  |
-  v
-Final Output
-```
+
+Then describe each step:
+1. **[Component]** — receives [input], produces [output]
+2. **[Component]** — takes output from step 1, transforms via [method], produces [output]
 
 ## Training Configuration
 
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| Optimizer | [name] | Section X |
-| Learning Rate | [value] | Section X |
-| Batch Size | [value] | Section X |
-| Epochs | [value] | Section X |
-| Loss Function | [formula or name] | Section X |
-| LR Schedule | [type] | Section X |
-| Weight Decay | [value] | Section X |
+- **Optimizer:** [name]
+- **Learning Rate:** [value]
+- **Batch Size:** [value]
+- **Epochs:** [value]
+- **Loss Function:** [formula or name]
+- **LR Schedule:** [type]
+- **Weight Decay:** [value]
 
 ## Design Decisions
 
-| Decision | Why (from paper) | Alternative Considered |
-|----------|-------------------|----------------------|
-| [choice made] | [author's reasoning] | [what they didn't do] |
+For each key decision:
+- **Decision:** [choice made]
+  - Rationale: [author's reasoning]
+  - Alternative: [what they didn't do]
 
 ---
 
@@ -67,4 +75,4 @@ Paper content:
 
 ---
 
-Be precise. Use exact numbers from the paper. If something isn't specified, write "Not specified" in the table cell.
+Be precise. Use exact numbers from the paper. If something isn't specified, write "Not specified." Include at least 2 mermaid diagrams.

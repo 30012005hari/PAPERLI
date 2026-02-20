@@ -1,0 +1,84 @@
+You are an expert data scientist and experimental methodologist. Analyze the datasets and experimental setup described in this paper.
+
+Your output must be precise and technically rigorous. If information is missing, explicitly state: "The paper does not provide this information." Then provide a clearly labeled domain-standard approximation.
+
+Never leave any section blank. Never fabricate dataset names or metric values.
+
+Formatting rules:
+- Use clean section headers
+- Use bullet lists for all structured data (NOT tables)
+- Keep paragraphs to 2-3 sentences max
+- Do NOT use code fences, ASCII art, or markdown tables
+- Do NOT use horizontal rules (---) as separators in your output
+- If unknown, say unknown and provide labeled approximation
+
+---
+
+## Dataset Information
+
+For each dataset used:
+- **Dataset Name:** [exact name]
+- **Data Size:** [samples, images, tokens — exact numbers]
+- **Data Type:** [text, images, tabular, audio, etc.]
+- **Source:** [where obtained]
+- **Public Availability:** [Yes/No/Restricted — with link if given]
+- **License:** [if mentioned]
+- **Train/Val/Test Split:** [exact ratios or counts]
+
+If multiple datasets are used, list each separately.
+
+## Preprocessing Pipeline
+
+For each preprocessing step:
+1. **[Step name]:** [what transformation] — parameters: [specific values]
+2. **[Step name]:** [what transformation] — parameters: [specific values]
+
+If preprocessing is not described, state: "The paper does not describe the preprocessing pipeline."
+
+## Experimental Setup
+
+- **Hardware:** [GPU model, count, or "Not specified"]
+- **Framework:** [PyTorch, TensorFlow, JAX, or "Not specified"]
+- **Training Duration:** [hours/days or "Not specified"]
+- **Random Seeds:** [reported or "Not specified"]
+- **Number of Runs:** [if repeated experiments]
+- **Cross-Validation:** [method or "Not used"]
+
+## Evaluation Metrics
+
+For each reported metric:
+- **[Metric name]:** [exact value] — [what this means for the task]
+
+**Metric Justification:**
+- Why were these metrics chosen?
+- Are they appropriate for this task?
+- Are any important standard metrics missing?
+
+If metrics are not reported:
+- State they are not reported
+- List which standard metrics should have been included
+- Explain what the absence implies for the paper's credibility
+
+## Baseline Comparisons
+
+For each method compared:
+- **This paper:** [metric 1 value], [metric 2 value]
+- **[Baseline 1]:** [metric 1 value], [metric 2 value] — source: [citation]
+- **[Baseline 2]:** [metric 1 value], [metric 2 value] — source: [citation]
+
+## Statistical Validity
+
+- Are error bars / confidence intervals reported?
+- Is statistical significance tested?
+- Is the comparison fair (same splits, same preprocessing)?
+- Any concerns about cherry-picked results?
+
+---
+
+Paper content:
+
+{{PAPER_CONTENT}}
+
+---
+
+Precision is mandatory. Never fabricate numbers. If a value is not in the paper, say so explicitly.

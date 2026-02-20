@@ -26,17 +26,19 @@ from config import DEFAULT_MODEL, DEFAULT_TEMPERATURE, MAX_PDF_SIZE_MB
 from modules.pdf_extractor import extract_text
 from modules.section_parser import parse_sections
 from modules.prompt_engine import (
+    build_overview_prompt,
     build_architecture_prompt,
+    build_technical_prompt,
+    build_equations_prompt,
+    build_analysis_prompt,
+    build_verdict_prompt,
+    build_dataset_eval_prompt,
     build_code_prompt,
     build_deployment_prompt,
-    build_explanation_prompt,
-    build_flashcards_prompt,
-    build_equations_prompt,
-    build_critique_prompt,
     build_chat_prompt,
-    build_comparison_prompt,
 )
-from modules.llm_client import generate_streaming as ollama_streaming, is_ollama_running, list_models, list_models_ranked
+from modules.dataset_extractor import extract_and_verify, results_to_json, results_from_json
+from modules.llm_client import generate_streaming as ollama_streaming, is_ollama_running, is_ollama_running_cached, list_models, list_models_ranked, list_models_ranked_cached
 from modules.gemini_client import generate_streaming as gemini_streaming, GEMINI_MODELS
 from modules.code_generator import parse_code_blocks
 from modules.project_builder import build_project_zip, file_tree_string
@@ -47,42 +49,37 @@ from backend.database import SessionLocal, Paper, Analysis, ChatMessage
 # Page config
 # ═══════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="Research Paper Explainer",
-    page_icon="RP",
+    page_title="Paperli — AI Research Paper Analyzer",
+    page_icon="🔬",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
 
-# ── Inject clean white theme ─────────────────────────────────────────────
-_force_light = """
-<style>
-    html, body, [data-testid="stAppViewContainer"], .stApp,
-    [data-testid="stHeader"], [data-testid="stToolbar"],
-    [data-testid="stDecoration"], [data-testid="stStatusWidget"],
-    .main, .main .block-container {
-        background-color: #f5f5f7 !important;
-        color: #111111 !important;
-    }
-    section[data-testid="stSidebar"] > div {
-        background-color: transparent !important;
-    }
-</style>
-"""
-st.markdown(_force_light, unsafe_allow_html=True)
+# (Theme is enforced via assets/style.css — no inline override needed)
 
-_css_path = PROJECT_ROOT / "assets" / "style.css"
-if _css_path.exists():
-    st.markdown(f"<style>{_css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
-# ── Startup splash overlay ───────────────────────────────────────────────
-_splash = """
-<div class="startup-overlay" id="splash">
-    <span class="splash-logo">Research Paper Explainer</span>
-    <span class="splash-sub">Analyse. Understand. Build.</span>
-    <div class="splash-bar"></div>
-</div>
-"""
-st.markdown(_splash, unsafe_allow_html=True)
+def _load_css() -> str:
+    """Read CSS file (uncached so edits apply immediately)."""
+    css_path = PROJECT_ROOT / "assets" / "style.css"
+    if css_path.exists():
+        return css_path.read_text(encoding="utf-8")
+    return ""
+
+_css_content = _load_css()
+if _css_content:
+    st.markdown(f"<style>{_css_content}</style>", unsafe_allow_html=True)
+
+# ── Startup splash overlay (only on first load) ─────────────────────────
+if "_splash_shown" not in st.session_state:
+    st.session_state["_splash_shown"] = True
+    _splash = """
+    <div class="startup-overlay" id="splash">
+        <span class="splash-logo">Paperli</span>
+        <span class="splash-sub">Start Your Research</span>
+        <div class="splash-bar"></div>
+    </div>
+    """
+    st.markdown(_splash, unsafe_allow_html=True)
 # ═══════════════════════════════════════════════════════════════════════════
 # Session-state defaults
 # ═══════════════════════════════════════════════════════════════════════════
@@ -90,15 +87,26 @@ _DEFAULTS: dict = {
     "extracted_text": None,
     "pages": None,
     "sections": None,
-    "explanation": None,
-    "architecture": None,
+    # Section-based analysis (research engine v2)
+    "overview": None,
+    "technical": None,
+    "dataset_eval": None,
+    "analysis": None,
+    "verdict": None,
+    # Utility sections
     "code_raw": None,
     "code_files": None,
     "deployment": None,
+    "datasets_json": None,
+    # Legacy keys (for backward compat with old DB analyses)
+    "explanation": None,
+    "architecture": None,
     "flashcards": None,
     "equations": None,
     "critique": None,
     "comparison": None,
+    "datasets_llm": None,
+    # Shared state
     "chat_history": [],
     "zip_bytes": None,
     "analysis_done": False,
@@ -108,7 +116,7 @@ _DEFAULTS: dict = {
 
 for key, val in _DEFAULTS.items():
     if key not in st.session_state:
-        st.session_state[key] = val
+        st.session_state[key] = val.copy() if isinstance(val, (list, dict)) else val
 
 
 # ── DB helper ────────────────────────────────────────────────────────────────
@@ -129,13 +137,13 @@ with st.sidebar:
     use_gemini = "Gemini" in provider
 
     if not use_gemini:
-        ollama_ok = is_ollama_running()
+        ollama_ok = is_ollama_running_cached()
         if ollama_ok:
             st.success("Ollama is running")
         else:
             st.error("Ollama not reachable. Run `ollama serve`.")
 
-        ranked_models = list_models_ranked() if ollama_ok else []
+        ranked_models = list_models_ranked_cached() if ollama_ok else []
         available_models = [m["name"] for m in ranked_models]
         if available_models:
             model_labels = []
@@ -199,12 +207,12 @@ with st.sidebar:
     db = _get_db()
     try:
         past_papers = db.query(Paper).order_by(Paper.created_at.desc()).limit(20).all()
+        # Pre-load analysis counts to avoid N+1 queries
         if past_papers:
             for pp in past_papers:
                 analysis_count = len(pp.analyses)
                 label = f"{pp.filename}  ({analysis_count} analysis{'es' if analysis_count != 1 else ''})"
                 if st.button(label, key=f"hist_{pp.id}", use_container_width=True):
-                    # Load the most recent analysis for this paper
                     latest = (
                         db.query(Analysis)
                         .filter(Analysis.paper_id == pp.id)
@@ -212,15 +220,24 @@ with st.sidebar:
                         .first()
                     )
                     if latest:
+                        # Map DB columns → new section keys
+                        st.session_state["overview"] = latest.explanation
+                        st.session_state["technical"] = latest.architecture
+                        st.session_state["dataset_eval"] = latest.datasets_llm
+                        st.session_state["analysis"] = latest.critique
+                        st.session_state["verdict"] = latest.comparison
+                        # Also set legacy keys for backward compat
                         st.session_state["explanation"] = latest.explanation
                         st.session_state["architecture"] = latest.architecture
                         st.session_state["code_raw"] = latest.code_raw
-                        st.session_state["code_files"] = parse_code_blocks(latest.code_raw)
+                        st.session_state["code_files"] = parse_code_blocks(latest.code_raw or "")
                         st.session_state["deployment"] = latest.deployment
                         st.session_state["flashcards"] = latest.flashcards
                         st.session_state["equations"] = latest.equations
                         st.session_state["critique"] = latest.critique
                         st.session_state["comparison"] = latest.comparison
+                        st.session_state["datasets_json"] = latest.datasets_json
+                        st.session_state["datasets_llm"] = latest.datasets_llm
                         st.session_state["zip_bytes"] = latest.zip_bytes
                         st.session_state["sections"] = json.loads(pp.sections_json)
                         st.session_state["extracted_text"] = pp.extracted_text
@@ -228,7 +245,6 @@ with st.sidebar:
                         st.session_state["analysis_done"] = True
                         st.session_state["current_paper_id"] = pp.id
                         st.session_state["current_analysis_id"] = latest.id
-                        # Load chat history from DB
                         chat_msgs = (
                             db.query(ChatMessage)
                             .filter(ChatMessage.analysis_id == latest.id)
@@ -246,35 +262,40 @@ with st.sidebar:
     finally:
         db.close()
 
-# Header — editorial, centered
-st.markdown("")
-st.markdown("")
-st.markdown('<h1 style="text-align:center;">Research Paper Explainer</h1>', unsafe_allow_html=True)
-st.caption(
-    "Upload a PDF. Get explanations, architecture, code, and deployment instructions."
-)
-st.markdown("")
-st.markdown("")
+# ═══════════════════════════════════════════════════════════════════════════
+# Show hero + upload ONLY when no analysis is active
+# ═══════════════════════════════════════════════════════════════════════════
+uploaded_file = None  # default; set inside the upload block
+
+if not st.session_state.get("analysis_done"):
+    # Header — animated hero with text logo
+    import base64 as _b64
+    _logo_svg = PROJECT_ROOT / "assets" / "logo.svg"
+    _logo_b64 = _b64.b64encode(_logo_svg.read_bytes()).decode() if _logo_svg.exists() else ""
+    _logo_tag = f'<img src="data:image/svg+xml;base64,{_logo_b64}" class="hero-logo-img" alt="Paperli"/>' if _logo_b64 else ""
+    _hero_html = f'<div class="hero-container"><div class="hero-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="hero-logo-wrap">{_logo_tag}</div><h1 class="hero-brand">Start Your Research</h1><p class="hero-subtitle">Drop a paper below — AI analyzes every section, equation, and insight.</p><div class="hero-tags"><span class="hero-tag">Overview</span><span class="hero-tag">Architecture</span><span class="hero-tag">Technical</span><span class="hero-tag">Equations</span><span class="hero-tag">Analysis</span><span class="hero-tag">Verdict</span><span class="hero-tag">Datasets</span><span class="hero-tag">Code</span><span class="hero-tag">Deploy</span></div></div>'
+    st.markdown(_hero_html, unsafe_allow_html=True)
+    st.markdown("")
 
 
-# Upload
-uploaded_file = st.file_uploader(
-    "Drop your research paper here",
-    type=["pdf"],
-    help=f"Max {MAX_PDF_SIZE_MB} MB",
-)
+    # Upload
+    uploaded_file = st.file_uploader(
+        "Drop your research paper here",
+        type=["pdf"],
+        help=f"Max {MAX_PDF_SIZE_MB} MB",
+    )
 
-if uploaded_file is not None:
-    # Size check
-    size_mb = uploaded_file.size / (1024 * 1024)
-    if size_mb > MAX_PDF_SIZE_MB:
-        st.error(f"File is {size_mb:.1f} MB — max allowed is {MAX_PDF_SIZE_MB} MB.")
-        st.stop()
+    if uploaded_file is not None:
+        # Size check
+        size_mb = uploaded_file.size / (1024 * 1024)
+        if size_mb > MAX_PDF_SIZE_MB:
+            st.error(f"File is {size_mb:.1f} MB — max allowed is {MAX_PDF_SIZE_MB} MB.")
+            st.stop()
 
-    col_info1, col_info2, col_info3 = st.columns(3)
-    col_info1.metric("File", uploaded_file.name)
-    col_info2.metric("Size", f"{size_mb:.2f} MB")
-    col_info3.metric("Status", "Ready" if provider_ready else "Not ready")
+        col_info1, col_info2, col_info3 = st.columns(3)
+        col_info1.metric("File", uploaded_file.name)
+        col_info2.metric("Size", f"{size_mb:.2f} MB")
+        col_info3.metric("Status", "Ready" if provider_ready else "Not ready")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -291,13 +312,15 @@ def _stream_and_collect(prompt: str, model: str, temp: float, placeholder) -> st
         tokens: list[str] = []
         for tok in stream:
             tokens.append(tok)
-            if len(tokens) % 3 == 0:
+            if len(tokens) % 6 == 0:
                 placeholder.markdown("".join(tokens) + "▌")
         full = "".join(tokens)
         placeholder.markdown(full)
+        print(f"[LLM] Generated {len(full)} chars")
         return full
     except (RuntimeError, ConnectionError) as e:
         error_msg = str(e)
+        print(f"[LLM ERROR] {error_msg[:300]}")
         if "403" in error_msg:
             placeholder.error(
                 "**API Error (403):** Your Gemini API key doesn't have access. "
@@ -311,6 +334,7 @@ def _stream_and_collect(prompt: str, model: str, temp: float, placeholder) -> st
             placeholder.error(f"**Error:** {error_msg[:300]}")
         return ""
     except Exception as e:
+        print(f"[LLM EXCEPTION] {str(e)[:300]}")
         placeholder.error(f"**Error:** {str(e)[:300]}")
         return ""
 
@@ -324,91 +348,28 @@ if uploaded_file is not None:
         "Analyse Paper",
         use_container_width=True,
         disabled=not provider_ready,
+        type="primary",
     )
 
     if analyse_clicked:
-        # Reset previous results
-        for key in _DEFAULTS:
-            st.session_state[key] = _DEFAULTS[key]
+        # Reset previous results (copy mutable values to avoid sharing refs)
+        for key, val in _DEFAULTS.items():
+            st.session_state[key] = val.copy() if isinstance(val, (list, dict)) else val
 
-        with st.status("Analysing paper...", expanded=True) as status:
-
-            st.write("Extracting text from PDF...")
+        # ── Quick extraction pass (no LLM, just PDF parsing) ─────
+        with st.spinner("Extracting text from PDF..."):
             full_text, pages = extract_text(uploaded_file)
             st.session_state["extracted_text"] = full_text
             st.session_state["pages"] = pages
-            st.write(f"Extracted {len(pages)} pages, {len(full_text):,} characters.")
 
-            st.write("Identifying paper sections...")
             sections = parse_sections(full_text)
             st.session_state["sections"] = sections
-            detected = [k for k in sections if k != "full_text"]
-            if detected:
-                st.write(f"Detected: {', '.join(s.title() for s in detected)}")
-            else:
-                st.write("No named sections found. Using full text.")
 
-            st.write("Generating explanation...")
-            prompt_explain = build_explanation_prompt(sections)
-            ph_explain = st.empty()
-            explanation = _stream_and_collect(prompt_explain, selected_model, temperature, ph_explain)
-            st.session_state["explanation"] = explanation
-
-            st.write("Breaking down architecture...")
-            prompt_arch = build_architecture_prompt(sections)
-            ph_arch = st.empty()
-            architecture = _stream_and_collect(prompt_arch, selected_model, temperature, ph_arch)
-            st.session_state["architecture"] = architecture
-
-            st.write("Generating implementation code...")
-            prompt_code = build_code_prompt(sections)
-            ph_code = st.empty()
-            code_raw = _stream_and_collect(prompt_code, selected_model, temperature, ph_code)
-            code_files = parse_code_blocks(code_raw)
-            st.session_state["code_raw"] = code_raw
-            st.session_state["code_files"] = code_files
-            st.write(f"Generated {len(code_files)} files.")
-
-            st.write("Generating deployment instructions...")
-            prompt_deploy = build_deployment_prompt(sections)
-            ph_deploy = st.empty()
-            deployment = _stream_and_collect(prompt_deploy, selected_model, temperature, ph_deploy)
-            st.session_state["deployment"] = deployment
-
-            st.write("Creating flashcards...")
-            prompt_flash = build_flashcards_prompt(sections)
-            ph_flash = st.empty()
-            flashcards = _stream_and_collect(prompt_flash, selected_model, temperature, ph_flash)
-            st.session_state["flashcards"] = flashcards
-
-            st.write("Extracting key equations...")
-            prompt_eq = build_equations_prompt(sections)
-            ph_eq = st.empty()
-            equations = _stream_and_collect(prompt_eq, selected_model, temperature, ph_eq)
-            st.session_state["equations"] = equations
-
-            st.write("Writing critique...")
-            prompt_crit = build_critique_prompt(sections)
-            ph_crit = st.empty()
-            critique = _stream_and_collect(prompt_crit, selected_model, temperature, ph_crit)
-            st.session_state["critique"] = critique
-
-            st.write("Comparing with similar research...")
-            prompt_comp = build_comparison_prompt(sections)
-            ph_comp = st.empty()
-            comparison = _stream_and_collect(prompt_comp, selected_model, temperature, ph_comp)
-            st.session_state["comparison"] = comparison
-
-            if code_files:
-                st.write("Building project archive...")
-                zip_bytes = build_project_zip(code_files)
-                st.session_state["zip_bytes"] = zip_bytes
-
-            # ── Save to database ─────────────────────────────────────────
-            st.write("Saving to database...")
+            # ── Create Paper record upfront for incremental saves ────
             db = _get_db()
+            paper_rec = None
+            analysis_rec = None
             try:
-                # Save paper
                 paper_rec = Paper(
                     filename=uploaded_file.name,
                     size_mb=round(size_mb, 2),
@@ -421,32 +382,32 @@ if uploaded_file is not None:
                 db.refresh(paper_rec)
                 st.session_state["current_paper_id"] = paper_rec.id
 
-                # Save analysis
                 analysis_rec = Analysis(
                     paper_id=paper_rec.id,
                     model_used=selected_model,
                     provider="gemini" if use_gemini else "ollama",
                     detail_level=detail_level,
-                    explanation=explanation,
-                    architecture=architecture,
-                    code_raw=code_raw,
-                    deployment=deployment,
-                    flashcards=flashcards,
-                    equations=equations,
-                    critique=critique,
-                    comparison=comparison,
-                    zip_bytes=zip_bytes if code_files else None,
                 )
                 db.add(analysis_rec)
                 db.commit()
                 db.refresh(analysis_rec)
                 st.session_state["current_analysis_id"] = analysis_rec.id
-                st.write(f"Saved as Paper #{paper_rec.id}, Analysis #{analysis_rec.id}")
+                print(f"[DB] Created Paper #{paper_rec.id}, Analysis #{analysis_rec.id}")
+            except Exception as db_err:
+                print(f"[DB ERROR] Initial save failed: {db_err}")
+                paper_rec = None
+                analysis_rec = None
             finally:
-                db.close()
+                try:
+                    db.close()
+                except Exception:
+                    pass
 
-            st.session_state["analysis_done"] = True
-            status.update(label="Analysis complete", state="complete", expanded=False)
+        # Mark tabs ready, flag that generation is needed
+        st.session_state["analysis_done"] = True
+        st.session_state["_needs_generation"] = True
+        st.rerun()
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -468,55 +429,399 @@ def _detect_language(filename: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Helper: save a section to DB lazily
+# ═══════════════════════════════════════════════════════════════════════════
+def _save_section_to_db(db_column: str, value: str):
+    """Save a lazily-generated section to the existing analysis record."""
+    analysis_id = st.session_state.get("current_analysis_id")
+    if not analysis_id or not value:
+        return
+    db = _get_db()
+    try:
+        rec = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+        if rec:
+            setattr(rec, db_column, value)
+            db.commit()
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Helper: render mermaid diagrams
+# ═══════════════════════════════════════════════════════════════════════════
+import re as _re
+import streamlit.components.v1 as _components
+
+def _render_mermaid(mermaid_code: str, height: int = 500):
+    """Render a mermaid diagram using the Mermaid JS CDN (UMD).
+    Falls back to showing raw code if rendering fails."""
+    # Clean up common LLM-generated mermaid issues
+    clean_code = mermaid_code.strip()
+    # Remove trailing semicolons from lines (common LLM mistake)
+    clean_lines = []
+    for line in clean_code.split('\n'):
+        stripped = line.rstrip()
+        if stripped.endswith(';') and not stripped.startswith('%%'):
+            stripped = stripped[:-1]
+        clean_lines.append(stripped)
+    clean_code = '\n'.join(clean_lines)
+    # Escape for safe embedding in HTML
+    import html as _html_mod
+    escaped_code = _html_mod.escape(clean_code)
+
+    html = f"""<!DOCTYPE html>
+<html><head>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  body {{ margin:0; padding:16px; background:transparent; font-family:sans-serif; }}
+  .mermaid {{ text-align:center; }}
+  .fallback {{ display:none; padding:12px; background:#f8f8f8; border-radius:8px;
+               font-family:monospace; font-size:12px; white-space:pre-wrap;
+               color:#333; overflow-x:auto; }}
+  .fallback-msg {{ display:none; color:#888; font-size:12px; margin-bottom:8px; }}
+</style>
+</head><body>
+<div class="fallback-msg" id="errmsg">⚠ Diagram had syntax issues — showing raw code:</div>
+<pre class="fallback" id="fallback">{escaped_code}</pre>
+<div class="mermaid" id="diagram">
+{clean_code}
+</div>
+<script>
+  mermaid.initialize({{ startOnLoad: false, theme: 'default', securityLevel: 'loose' }});
+  mermaid.run({{ querySelector: '#diagram' }}).catch(function(err) {{
+    document.getElementById('diagram').style.display = 'none';
+    document.getElementById('fallback').style.display = 'block';
+    document.getElementById('errmsg').style.display = 'block';
+  }});
+</script>
+</body></html>"""
+    _components.html(html, height=height, scrolling=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Helper: render a section with one-time fade-in + mermaid support
+# ═══════════════════════════════════════════════════════════════════════════
+_MERMAID_BLOCK_RE = _re.compile(r"```mermaid\r?\n(.*?)```", _re.DOTALL)
+
+def _render_section(content: str, section_key: str):
+    """Render markdown content, auto-converting ```mermaid blocks to diagrams."""
+    reveal_key = f"_revealed_{section_key}"
+    if reveal_key not in st.session_state:
+        st.session_state[reveal_key] = True
+        st.markdown(
+            f'<div class="section-reveal">{""}</div>',
+            unsafe_allow_html=True,
+        )
+
+    # Split content on mermaid blocks
+    parts = _MERMAID_BLOCK_RE.split(content)
+    # parts alternates: [text, mermaid_code, text, mermaid_code, ...]
+    for i, part in enumerate(parts):
+        part = part.strip()
+        if not part:
+            continue
+        if i % 2 == 0:
+            # Regular markdown
+            st.markdown(part)
+        else:
+            # Mermaid diagram code
+            _render_mermaid(part)
+
+
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Results tabs — shown when analysis is done
 # ═══════════════════════════════════════════════════════════════════════════
 if st.session_state.get("analysis_done"):
     st.markdown("---")
-    st.markdown("## Results")
+    _res_col1, _res_col2 = st.columns([4, 1])
+    _res_col1.markdown("## Results")
+    if _res_col2.button("↩ New Analysis", use_container_width=True):
+        for key, val in _DEFAULTS.items():
+            st.session_state[key] = val.copy() if isinstance(val, (list, dict)) else val
+        st.rerun()
 
-    tab_explain, tab_arch, tab_flash, tab_eq, tab_crit, tab_comp, tab_code, tab_download, tab_deploy = st.tabs([
-        "Explanation",
+    tab_overview, tab_arch, tab_technical, tab_equations, tab_analysis, tab_verdict, tab_dataset, tab_code, tab_download, tab_deploy = st.tabs([
+        "Overview",
         "Architecture",
-        "Flashcards",
+        "Technical",
         "Equations",
-        "Critique",
-        "Compare",
+        "Analysis",
+        "Verdict",
+        "Datasets",
         "Code",
         "Download",
-        "Deployment",
+        "Deploy",
     ])
 
-    # -- Explanation tab
-    with tab_explain:
-        st.markdown(st.session_state["explanation"])
+    # ── If sections need generating, stream directly into tabs ──────
+    if st.session_state.get("_needs_generation"):
+        sections = st.session_state.get("sections", {})
+        full_text = st.session_state.get("extracted_text", "")
 
-    # -- Architecture tab
-    with tab_arch:
-        st.markdown(st.session_state["architecture"])
+        # Create placeholders inside EVERY tab upfront
+        with tab_overview:
+            ph_overview = st.empty()
+        with tab_arch:
+            ph_arch = st.empty()
+        with tab_technical:
+            ph_tech = st.empty()
+        with tab_equations:
+            ph_equations = st.empty()
+        with tab_analysis:
+            ph_analysis = st.empty()
+        with tab_verdict:
+            ph_verdict = st.empty()
+        with tab_dataset:
+            ph_dseval = st.empty()
+        with tab_code:
+            ph_code = st.empty()
+        with tab_deploy:
+            ph_deploy = st.empty()
 
-    # -- Flashcards tab
-    with tab_flash:
-        st.markdown(st.session_state["flashcards"])
+        # DB helper
+        def _save_field(field_name: str, value: str):
+            analysis_id = st.session_state.get("current_analysis_id")
+            if not analysis_id or not value:
+                return
+            db = _get_db()
+            try:
+                rec = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+                if rec:
+                    setattr(rec, field_name, value)
+                    db.commit()
+            except Exception:
+                pass
+            finally:
+                db.close()
 
-    # -- Equations tab
-    with tab_eq:
-        st.markdown(st.session_state["equations"])
+        # ── Generate in TAB ORDER so user reads as content arrives ──
 
-    # -- Critique tab
-    with tab_crit:
-        st.markdown(st.session_state["critique"])
+        # 1. Overview
+        overview = _stream_and_collect(
+            build_overview_prompt(sections), selected_model, temperature, ph_overview
+        )
+        st.session_state["overview"] = overview
+        _save_field("explanation", overview)
 
-    # -- Compare tab
-    with tab_comp:
-        st.markdown(st.session_state["comparison"])
+        # 2. Architecture
+        arch = _stream_and_collect(
+            build_architecture_prompt(sections), selected_model, temperature, ph_arch
+        )
+        st.session_state["architecture"] = arch
+        _save_field("architecture", arch)
 
-    # -- Code tab (IDE-like editor + terminal)
+        # 3. Technical
+        tech = _stream_and_collect(
+            build_technical_prompt(sections), selected_model, temperature, ph_tech
+        )
+        st.session_state["technical"] = tech
+        _save_field("flashcards", tech)
+
+        # 4. Equations
+        equations = _stream_and_collect(
+            build_equations_prompt(sections), selected_model, temperature, ph_equations
+        )
+        st.session_state["equations"] = equations
+        _save_field("equations", equations)
+
+        # 5. Analysis
+        analysis_text = _stream_and_collect(
+            build_analysis_prompt(sections), selected_model, temperature, ph_analysis
+        )
+        st.session_state["analysis"] = analysis_text
+        _save_field("critique", analysis_text)
+
+        # 6. Verdict
+        verdict = _stream_and_collect(
+            build_verdict_prompt(sections), selected_model, temperature, ph_verdict
+        )
+        st.session_state["verdict"] = verdict
+        _save_field("comparison", verdict)
+
+        # 6. Datasets (fast link extraction + LLM eval)
+        datasets_json_str = "[]"
+        try:
+            dataset_results = extract_and_verify(full_text)
+            datasets_json_str = results_to_json(dataset_results)
+            st.session_state["datasets_json"] = datasets_json_str
+        except Exception:
+            st.session_state["datasets_json"] = datasets_json_str
+        _save_field("datasets_json", datasets_json_str)
+
+        dseval = _stream_and_collect(
+            build_dataset_eval_prompt(sections), selected_model, temperature, ph_dseval
+        )
+        st.session_state["dataset_eval"] = dseval
+        _save_field("datasets_llm", dseval)
+
+        # 7. Code + project archive
+        code_raw = _stream_and_collect(
+            build_code_prompt(sections), selected_model, temperature, ph_code
+        )
+        code_files = parse_code_blocks(code_raw)
+        st.session_state["code_raw"] = code_raw
+        st.session_state["code_files"] = code_files
+        _save_field("code_raw", code_raw)
+
+        if code_files:
+            try:
+                zip_buf = build_project_zip(code_files)
+                st.session_state["zip_bytes"] = zip_buf.getvalue()
+                aid = st.session_state.get("current_analysis_id")
+                if aid:
+                    db = _get_db()
+                    try:
+                        rec = db.query(Analysis).filter(Analysis.id == aid).first()
+                        if rec:
+                            rec.zip_bytes = st.session_state["zip_bytes"]
+                            db.commit()
+                    except Exception:
+                        pass
+                    finally:
+                        db.close()
+            except Exception:
+                pass
+
+        # 8. Deploy
+        deploy = _stream_and_collect(
+            build_deployment_prompt(sections), selected_model, temperature, ph_deploy
+        )
+        st.session_state["deployment"] = deploy
+        _save_field("deployment", deploy)
+
+        # ── Done ──────────────────────────────────────────────
+        has_content = bool(overview or arch or tech)
+        st.session_state["analysis_done"] = has_content
+        st.session_state["_needs_generation"] = False
+
+        if has_content:
+            print("[ANALYSIS] Complete — all sections generated")
+        else:
+            print("[ANALYSIS] FAILED — all LLM calls returned empty")
+
+        st.rerun()  # final rerun to show clean rendered state
+
+    else:
+        # ── Normal display — all content already generated ──────
+        with tab_overview:
+            _render_section(
+                st.session_state.get("overview")
+                or st.session_state.get("explanation")
+                or "_No overview generated._",
+                "overview",
+            )
+
+        with tab_arch:
+            _render_section(
+                st.session_state.get("architecture")
+                or "_No architecture generated._",
+                "architecture",
+            )
+
+        with tab_technical:
+            _render_section(
+                st.session_state.get("technical")
+                or st.session_state.get("flashcards")
+                or "_No technical breakdown generated._",
+                "technical",
+            )
+
+        with tab_equations:
+            _render_section(
+                st.session_state.get("equations")
+                or "_No equations extracted._",
+                "equations",
+            )
+
+        with tab_analysis:
+            _render_section(
+                st.session_state.get("analysis")
+                or st.session_state.get("critique")
+                or "_No analysis generated._",
+                "analysis",
+            )
+
+        with tab_verdict:
+            _render_section(
+                st.session_state.get("verdict")
+                or st.session_state.get("comparison")
+                or "_No verdict generated._",
+                "verdict",
+            )
+
+    # ── Datasets (extracted links + lazy LLM analysis)
+    with tab_dataset:
+        _ds_json_str = st.session_state.get("datasets_json") or ""
+        _ds_results = results_from_json(_ds_json_str) if _ds_json_str else []
+
+        if _ds_results:
+            _total = len(_ds_results)
+            _datasets = [r for r in _ds_results if r["category"] == "dataset"]
+            _available = [r for r in _ds_results if r["status"] == "available"]
+            _unavailable = [r for r in _ds_results if r["status"] in ("not_found", "unreachable", "error")]
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total Links", _total)
+            m2.metric("Datasets", len(_datasets))
+            m3.metric("Available", len(_available))
+            m4.metric("Unavailable", len(_unavailable))
+
+            st.markdown("")
+            st.markdown("### Extracted Links")
+
+            _STATUS_STYLES = {
+                "available":   ("#22c55e", "#f0fdf4", "Available"),
+                "restricted":  ("#f59e0b", "#fffbeb", "Restricted"),
+                "not_found":   ("#ef4444", "#fef2f2", "Not Found"),
+                "timeout":     ("#f97316", "#fff7ed", "Timeout"),
+                "unreachable": ("#ef4444", "#fef2f2", "Unreachable"),
+                "error":       ("#ef4444", "#fef2f2", "Error"),
+                "unknown":     ("#94a3b8", "#f8fafc", "Unknown"),
+            }
+            _CAT_EMOJI = {"dataset": "📊", "code": "💻", "paper": "📄", "other": "🔗"}
+
+            for r in _ds_results:
+                _sc, _bg, _label = _STATUS_STYLES.get(r["status"], ("#94a3b8", "#f8fafc", r["status"]))
+                _emoji = _CAT_EMOJI.get(r["category"], "🔗")
+                _size = r.get("size_human", "Unknown")
+                _url = r["url"]
+                _short_url = _url[:80] + "..." if len(_url) > 80 else _url
+
+                st.markdown(
+                    f'<div class="dataset-card">'
+                    f'<span class="ds-icon">{_emoji}</span>'
+                    f'<div class="ds-info">'
+                    f'<a href="{_url}" target="_blank" class="ds-url">{_short_url}</a>'
+                    f'<div class="ds-meta">Size: {_size} · Type: {r.get("content_type", "N/A")}</div>'
+                    f'</div>'
+                    f'<span class="dataset-status-pill" style="'
+                    f'color: {_sc};'
+                    f'background: {_bg};'
+                    f'border: 1px solid {_sc}30;'
+                    f'">{_label}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+        st.markdown("")
+        st.markdown("### AI Dataset & Evaluation Analysis")
+        _render_section(
+            st.session_state.get("dataset_eval")
+            or st.session_state.get("datasets_llm")
+            or "_No dataset evaluation generated._",
+            "dataset_eval",
+        )
+
+    # ── Code (auto — IDE editor + terminal)
     with tab_code:
         code_files: dict[str, str] = st.session_state.get("code_files", {})
         if code_files:
             file_names = list(code_files.keys())
-
-            # File selector tabs
             selected_file = st.selectbox(
                 "Select file",
                 file_names,
@@ -526,21 +831,18 @@ if st.session_state.get("analysis_done"):
 
             lang = _detect_language(selected_file)
 
-            # Initialize editor state for each file
             editor_key = f"editor_{selected_file}"
             if editor_key not in st.session_state:
                 st.session_state[editor_key] = code_files[selected_file]
 
-            # Two-column layout: code view + controls
             st.markdown(
                 f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
-                f'<span style="font-family:monospace;font-size:0.85rem;color:#888;">📄 {selected_file}</span>'
-                f'<span style="font-family:monospace;font-size:0.75rem;color:#555;margin-left:auto;">{lang}</span>'
+                f'<span style="font-family:var(--mono, monospace);font-size:0.82rem;color:var(--text-muted,#888);">{selected_file}</span>'
+                f'<span style="font-family:var(--mono, monospace);font-size:0.72rem;color:var(--text-faint,#bbb);margin-left:auto;">{lang}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
 
-            # Editable code area
             edited_code = st.text_area(
                 "Code Editor",
                 value=st.session_state[editor_key],
@@ -548,10 +850,8 @@ if st.session_state.get("analysis_done"):
                 key=f"code_input_{selected_file}",
                 label_visibility="collapsed",
             )
-            # Keep editor state in sync
             st.session_state[editor_key] = edited_code
 
-            # Action buttons row
             btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 3])
             with btn_col1:
                 run_clicked = st.button("▶ Run", key="run_code", use_container_width=True, type="primary")
@@ -562,13 +862,11 @@ if st.session_state.get("analysis_done"):
                 st.session_state[editor_key] = code_files.get(selected_file, "")
                 st.rerun()
 
-            # Read-only syntax-highlighted view
             with st.expander("Syntax-highlighted view", expanded=False):
                 st.code(edited_code, language=lang, line_numbers=True)
 
-            # ── Terminal ─────────────────────────────────────────────────
             st.markdown(
-                '<p style="font-family:monospace;font-size:0.85rem;color:#888;margin:16px 0 4px 0;">Terminal</p>',
+                '<p style="font-family:var(--mono, monospace);font-size:0.82rem;color:var(--text-muted,#888);margin:16px 0 4px 0;">Terminal</p>',
                 unsafe_allow_html=True,
             )
 
@@ -576,7 +874,6 @@ if st.session_state.get("analysis_done"):
                 if lang == "python":
                     import subprocess, tempfile, os
 
-                    # Write code to a temp file and execute
                     with tempfile.NamedTemporaryFile(
                         mode="w", suffix=".py", delete=False, encoding="utf-8"
                     ) as tmp:
@@ -596,7 +893,6 @@ if st.session_state.get("analysis_done"):
                             output += result.stdout
                         if result.stderr:
                             output += ("\n" if output else "") + result.stderr
-
                         exit_code = result.returncode
                     except subprocess.TimeoutExpired:
                         output = "⏰ Execution timed out (30s limit)."
@@ -607,51 +903,28 @@ if st.session_state.get("analysis_done"):
                     finally:
                         os.unlink(tmp_path)
 
-                    # Dark terminal-style output
                     if exit_code == 0:
-                        status_badge = '<span style="color:#4ade80;">✓ exit 0</span>'
+                        status_badge = '<span class="term-ok">✓ exit 0</span>'
                     else:
-                        status_badge = f'<span style="color:#f87171;">✗ exit {exit_code}</span>'
+                        status_badge = f'<span class="term-err">✗ exit {exit_code}</span>'
 
                     terminal_html = f"""
-                    <div style="
-                        background: #1e1e2e;
-                        color: #cdd6f4;
-                        border-radius: 8px;
-                        padding: 12px 16px;
-                        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-                        font-size: 0.82rem;
-                        line-height: 1.6;
-                        max-height: 400px;
-                        overflow-y: auto;
-                        border: 1px solid #313244;
-                    ">
-                        <div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #313244;display:flex;justify-content:space-between;">
-                            <span style="color:#89b4fa;">$ python {selected_file}</span>
+                    <div class="terminal-block">
+                        <div class="term-header">
+                            <span class="term-cmd">$ python {selected_file}</span>
                             {status_badge}
                         </div>
-                        <pre style="margin:0;white-space:pre-wrap;word-wrap:break-word;">{output if output else '<span style="color:#585b70;">(no output)</span>'}</pre>
+                        <pre>{output if output else '<span style="color:#585b70;">(no output)</span>'}</pre>
                     </div>
                     """
                     st.markdown(terminal_html, unsafe_allow_html=True)
                 else:
                     st.warning(f"Running **{lang}** files is not supported yet. Only Python files can be executed.")
             else:
-                # Show empty terminal placeholder
                 st.markdown(
                     """
-                    <div style="
-                        background: #1e1e2e;
-                        color: #585b70;
-                        border-radius: 8px;
-                        padding: 12px 16px;
-                        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-                        font-size: 0.82rem;
-                        line-height: 1.6;
-                        min-height: 60px;
-                        border: 1px solid #313244;
-                    ">
-                        <span style="color:#89b4fa;">$</span> Press ▶ Run to execute the code...
+                    <div class="terminal-idle">
+                        <span class="term-cmd">$</span> Press ▶ Run to execute the code...
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -661,14 +934,14 @@ if st.session_state.get("analysis_done"):
             with st.expander("Raw LLM output"):
                 st.text(st.session_state.get("code_raw", ""))
 
-    # -- Download tab
+    # ── Download
     with tab_download:
         zip_bytes = st.session_state.get("zip_bytes")
-        code_files = st.session_state.get("code_files", {})
+        code_files_dl: dict[str, str] = st.session_state.get("code_files", {})
 
         if zip_bytes:
             st.markdown("### Project Structure")
-            st.code(file_tree_string(code_files), language="text")
+            st.code(file_tree_string(code_files_dl), language="text")
 
             st.download_button(
                 label="Download Project (.zip)",
@@ -678,11 +951,15 @@ if st.session_state.get("analysis_done"):
                 use_container_width=True,
             )
         else:
-            st.warning("No project files to download.")
+            st.info("No project files to download. Generate code first.")
 
-    # -- Deployment tab
+    # ── Deploy (auto)
     with tab_deploy:
-        st.markdown(st.session_state["deployment"])
+        _render_section(
+            st.session_state.get("deployment")
+            or "_No deployment instructions generated._",
+            "deployment",
+        )
 
     # ═══════════════════════════════════════════════════════════════════════
     # Chat — ask questions about the paper
@@ -719,5 +996,7 @@ if st.session_state.get("analysis_done"):
                 db.add(ChatMessage(analysis_id=analysis_id, role="user", content=user_q))
                 db.add(ChatMessage(analysis_id=analysis_id, role="assistant", content=answer))
                 db.commit()
+            except Exception:
+                pass  # Don't crash chat if DB write fails
             finally:
                 db.close()

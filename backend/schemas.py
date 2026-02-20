@@ -100,6 +100,8 @@ class AnalysisDetail(BaseModel):
     equations: str
     critique: str
     comparison: str
+    datasets_json: str = ""
+    datasets_llm: str = ""
     has_zip: bool = False
     created_at: datetime
 

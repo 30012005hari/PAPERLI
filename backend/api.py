@@ -59,6 +59,7 @@ from modules.prompt_engine import (
     build_critique_prompt,
     build_chat_prompt,
     build_comparison_prompt,
+    build_datasets_prompt,
 )
 from modules.llm_client import (
     generate_full as ollama_generate,
@@ -68,6 +69,7 @@ from modules.llm_client import (
 from modules.gemini_client import generate_full as gemini_generate
 from modules.code_generator import parse_code_blocks
 from modules.project_builder import build_project_zip
+from modules.dataset_extractor import extract_and_verify, results_to_json
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -240,9 +242,18 @@ def analyse_paper(paper_id: int, req: AnalyseRequest, db: Session = Depends(get_
     critique = _generate(build_critique_prompt(sections), req.model, req.provider, temp, req.gemini_key)
     comparison = _generate(build_comparison_prompt(sections), req.model, req.provider, temp, req.gemini_key)
 
+    # Dataset extraction and analysis
+    try:
+        dataset_results = extract_and_verify(paper.extracted_text)
+        datasets_json_str = results_to_json(dataset_results)
+    except Exception:
+        datasets_json_str = "[]"
+
+    datasets_llm = _generate(build_datasets_prompt(sections), req.model, req.provider, temp, req.gemini_key)
+
     # Build project zip
     code_files = parse_code_blocks(code_raw)
-    zip_bytes = build_project_zip(code_files) if code_files else None
+    zip_bytes = build_project_zip(code_files).getvalue() if code_files else None
 
     # Save to DB
     analysis = Analysis(
@@ -258,6 +269,8 @@ def analyse_paper(paper_id: int, req: AnalyseRequest, db: Session = Depends(get_
         equations=equations,
         critique=critique,
         comparison=comparison,
+        datasets_json=datasets_json_str,
+        datasets_llm=datasets_llm,
         zip_bytes=zip_bytes,
     )
     db.add(analysis)
@@ -278,6 +291,8 @@ def analyse_paper(paper_id: int, req: AnalyseRequest, db: Session = Depends(get_
         equations=analysis.equations,
         critique=analysis.critique,
         comparison=analysis.comparison,
+        datasets_json=analysis.datasets_json or "",
+        datasets_llm=analysis.datasets_llm or "",
         has_zip=analysis.zip_bytes is not None,
         created_at=analysis.created_at,
     )
@@ -305,6 +320,8 @@ def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
         equations=analysis.equations,
         critique=analysis.critique,
         comparison=analysis.comparison,
+        datasets_json=analysis.datasets_json or "",
+        datasets_llm=analysis.datasets_llm or "",
         has_zip=analysis.zip_bytes is not None,
         created_at=analysis.created_at,
     )

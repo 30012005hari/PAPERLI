@@ -88,6 +88,8 @@ class Analysis(Base):
     equations = Column(Text, default="")
     critique = Column(Text, default="")
     comparison = Column(Text, default="")
+    datasets_json = Column(Text, default="")   # JSON from extract_and_verify()
+    datasets_llm = Column(Text, default="")    # LLM-generated dataset analysis
     zip_bytes = Column(LargeBinary, nullable=True)
 
     created_at = Column(DateTime, default=_utcnow)

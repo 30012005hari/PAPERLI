@@ -57,6 +57,18 @@ def list_models_ranked() -> list[dict]:
         return []
 
 
+# Cached wrappers for Streamlit (avoids re-calling on every rerun)
+try:
+    import streamlit as _st
+
+    @_st.cache_data(ttl=30, show_spinner=False)
+    def list_models_ranked_cached() -> list[dict]:
+        return list_models_ranked()
+
+except Exception:
+    list_models_ranked_cached = list_models_ranked
+
+
 
 def is_ollama_running() -> bool:
     """Quick health check — can we reach Ollama?"""
@@ -65,6 +77,16 @@ def is_ollama_running() -> bool:
         return True
     except Exception:
         return False
+
+
+# Cached wrapper for Streamlit
+try:
+    @_st.cache_data(ttl=10, show_spinner=False)
+    def is_ollama_running_cached() -> bool:
+        return is_ollama_running()
+
+except Exception:
+    is_ollama_running_cached = is_ollama_running
 
 
 def generate_streaming(

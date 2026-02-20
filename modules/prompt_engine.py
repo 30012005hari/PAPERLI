@@ -95,3 +95,41 @@ def build_comparison_prompt(sections: dict[str, str]) -> str:
     """Return a prompt for comparing with the most similar paper."""
     template = _load_template("comparison.txt")
     return template.replace("{{PAPER_CONTENT}}", _sections_block(sections))
+
+
+def build_datasets_prompt(sections: dict[str, str]) -> str:
+    """Return a prompt for identifying datasets and suggesting alternatives."""
+    template = _load_template("datasets.txt")
+    return template.replace("{{PAPER_CONTENT}}", _sections_block(sections))
+
+
+# ── New section-based builders (research engine v2) ──────────────────────────
+
+def build_overview_prompt(sections: dict[str, str]) -> str:
+    """Return a prompt for paper overview: metadata + problem + contribution."""
+    template = _load_template("overview.txt")
+    return template.replace("{{PAPER_CONTENT}}", _sections_block(sections))
+
+
+def build_technical_prompt(sections: dict[str, str]) -> str:
+    """Return a prompt for technical breakdown: architecture, math, algorithm."""
+    template = _load_template("technical_breakdown.txt")
+    return template.replace("{{PAPER_CONTENT}}", _sections_block(sections))
+
+
+def build_dataset_eval_prompt(sections: dict[str, str]) -> str:
+    """Return a prompt for dataset analysis and evaluation metrics."""
+    template = _load_template("dataset_eval.txt")
+    return template.replace("{{PAPER_CONTENT}}", _sections_block(sections))
+
+
+def build_analysis_prompt(sections: dict[str, str]) -> str:
+    """Return a prompt for critical analysis: results, strengths, weaknesses."""
+    template = _load_template("analysis.txt")
+    return template.replace("{{PAPER_CONTENT}}", _sections_block(sections))
+
+
+def build_verdict_prompt(sections: dict[str, str]) -> str:
+    """Return a prompt for final technical verdict with scores."""
+    template = _load_template("verdict.txt")
+    return template.replace("{{PAPER_CONTENT}}", _sections_block(sections))

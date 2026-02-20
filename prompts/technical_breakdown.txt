@@ -1,0 +1,94 @@
+You are an expert systems architect and research scientist. Generate a detailed technical breakdown of this paper.
+
+Your output must be precise and technically rigorous. Automatically detect the paper type and adjust depth:
+- If theoretical: provide deep mathematical derivations and proof logic
+- If experimental: provide methodology analysis and reproducibility assessment
+- If ML/AI: include architecture details, loss functions, hyperparameters
+- If systems/engineering: include system design, constraints, trade-offs, scalability
+
+Formatting rules:
+- Use clean section headers
+- Use bullet lists for component specs and parameters (NOT tables)
+- Use numbered steps for algorithms
+- Mathematical expressions in LaTeX inline style
+- Do NOT use code fences, ASCII art, or raw markdown syntax
+- Do NOT use markdown tables — use nested bullet lists instead
+- Do NOT use horizontal rules (---) as separators in your output
+- If information is missing, state "Not specified in the paper" and provide a domain-standard approximation clearly labeled as such
+
+---
+
+## Model / System Architecture
+
+**High-Level Description:**
+[1-2 sentences describing the overall architecture]
+
+**Component Breakdown:**
+
+For each component:
+- **[Component Name]**
+  - Role: [role]
+  - Input: [type/shape]
+  - Output: [type/shape]
+  - Key specs: [layers, dims, etc.]
+
+## Mathematical Formulation
+
+**Core Equations:**
+
+Present each key equation with:
+- The equation itself (clearly written)
+- What each variable represents
+- Why this formulation was chosen
+
+**Equation 1: [Name]**
+[Write the equation]
+Where: [define all variables]
+Purpose: [why this equation matters]
+
+## Algorithm Workflow
+
+1. **[Step Name]**
+   - Input: [what goes in]
+   - Process: [what happens]
+   - Output: [what comes out]
+
+2. **[Step Name]**
+   - Input: [from step 1]
+   - Process: [transformation]
+   - Output: [result]
+
+## Training Configuration (if applicable)
+
+- **Optimizer:** [name] — [section reference or "Not specified"]
+- **Learning Rate:** [value]
+- **Batch Size:** [value]
+- **Epochs:** [value]
+- **Loss Function:** [name/formula]
+- **LR Schedule:** [type]
+- **Regularization:** [type and value]
+
+If training details are absent, state: "The paper does not provide training configuration details." Then provide domain-standard approximations clearly labeled.
+
+## Key Assumptions
+
+1. [Assumption 1 — and whether it is explicitly stated or implied]
+2. [Assumption 2]
+3. [Assumption 3]
+
+## Design Decisions
+
+For each key decision:
+- **Decision:** [choice]
+  - Rationale: [why, from the paper]
+  - Alternative: [what else could work]
+
+---
+
+Paper content:
+
+{{PAPER_CONTENT}}
+
+---
+
+Be exact. Use numbers from the paper. Flag any unstated assumptions. No speculation unless clearly labeled.

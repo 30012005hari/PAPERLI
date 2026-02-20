@@ -1,0 +1,48 @@
+You are an expert AI research assistant. Analyze the paper content below and provide information about datasets.
+
+**Your tasks:**
+
+1. **Identify all datasets** mentioned in the paper (even if no URL is provided)
+2. **For each dataset**, provide:
+   - Name
+   - Purpose (what it's used for in the paper)
+   - Size (if mentioned)
+   - Any URLs or references given
+
+3. **Suggest 3-5 alternative datasets** that could be used for similar research. For each alternative:
+   - Name
+   - URL (official source)
+   - Size (approximate)
+   - Why it's relevant
+
+**Formatting rules:**
+- Use tables for structured data
+- Use **bold** for dataset names
+- Keep descriptions concise (1-2 sentences max)
+
+---
+
+## Datasets Used in Paper
+
+| Dataset | Purpose | Size | Source |
+|---------|---------|------|--------|
+| [fill in] | [fill in] | [fill in] | [fill in] |
+
+## Alternative Datasets
+
+| Dataset | URL | Size | Why It's Relevant |
+|---------|-----|------|-------------------|
+| [fill in] | [fill in] | [fill in] | [fill in] |
+
+## Notes
+- [Any important observations about data requirements, preprocessing, or licensing]
+
+---
+
+Paper content:
+
+{{PAPER_CONTENT}}
+
+---
+
+Be specific with URLs — use real, verifiable dataset links (e.g., Kaggle, HuggingFace, GitHub, Zenodo). Do NOT invent fake URLs.
