@@ -1,0 +1,22 @@
+# Docker
+.venv/
+.git/
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+build/
+dist/
+*.spec
+*.egg-info/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+data/
+apk_wrapper/
+build_apk.sh
+build_exe.bat
+launcher.py
+launcher.spec

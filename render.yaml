@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: paperli
+    runtime: docker
+    repo: https://github.com/30012005hari/PAPERLI
+    branch: main
+    plan: free
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: STREAMLIT_SERVER_PORT
+        value: 8501
+      - key: STREAMLIT_SERVER_HEADLESS
+        value: true
