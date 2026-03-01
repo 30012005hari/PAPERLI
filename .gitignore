@@ -29,5 +29,10 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Node
+node_modules/
+
 # Misc
 *.log
+tmpclaude-*
+remotion-ad/
